@@ -30,14 +30,18 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: python bot.py
 
-      # Bahagian akhir main.yml
       - name: Commit and Push Changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          
           git add *.txt
+          
           if git diff --staged --quiet; then
-            echo "✅ Tiada berita baru."
+            echo "✅ Tiada berita baru untuk disimpan."
           else
-            git commit -m "chore: update links [skip ci]"
-            git pull --rebase origin main && git push origin main --force
+            git commit -m "chore: update last sent links [skip ci]"
+            git pull --rebase origin main
+            git push origin main --force
+            echo "✅ Berjaya update fail .txt"
+          fi
