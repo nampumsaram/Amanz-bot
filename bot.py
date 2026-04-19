@@ -3,61 +3,70 @@ from bs4 import BeautifulSoup
 import os
 import sys
 
-# 1. Ambil Webhook dari GitHub Secrets
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 RSS_URL = "https://amanz.my/feed/"
+DB_FILE = "last_link.txt"
 
 def main():
-    # Cek Webhook macam Grok cakap
     if not WEBHOOK_URL:
-        print("❌ ERROR: Webhook tak dijumpai dlm GitHub Secrets!")
+        print("❌ Webhook tak jumpa!")
         sys.exit(1)
 
+    # 1. Baca 'ingatan' bot (link terakhir yang dihantar)
+    last_sent_link = ""
+    if os.path.exists(DB_FILE):
+        with open(DB_FILE, "r") as f:
+            last_sent_link = f.read().strip()
+
     try:
-        print("🚀 Memulakan misi sedut berita Amanz...")
-        
-        # Guna curl_cffi untuk menyamar jadi Chrome (Tembus Cloudflare)
+        print("🚀 Memeriksa berita baru...")
         res = requests.get(RSS_URL, impersonate="chrome", timeout=30)
-        
-        if res.status_code != 200:
-            print(f"❌ Kena Block! Status: {res.status_code}")
-            return
-
-        # Parsing XML
         soup = BeautifulSoup(res.content, 'xml')
-        item = soup.find('item')
-        
-        # Elakkan error 'NoneType' yang kau kena tadi
-        if not item:
-            print("⚠️ Amanz hantar page kosong/challenge. Tak jumpa tag <item>.")
+        items = soup.find_all('item')
+
+        if not items:
+            print("⚠️ RSS Kosong.")
             return
 
-        title = item.title.text
-        link = item.link.text
-        
-        print(f"✅ Berita dijumpai: {title}")
+        # 2. Cari berita yang belum pernah dihantar
+        new_items = []
+        for item in items:
+            link = item.link.text.strip()
+            if link == last_sent_link:
+                break # Berhenti bila jumpa berita lama
+            new_items.append(item)
 
-        # 2. Hantar ke Discord dengan gaya hensem (Embed)
-        payload = {
-            "embeds": [{
-                "title": f"🔥 {title}",
-                "url": link,
-                "description": "Klik link di atas untuk baca berita penuh di Amanz.my",
-                "color": 16733952, # Warna oren Amanz
-                "footer": {"text": "Amanz News Bot • April 2026"}
-            }]
-        }
-        
-        print("📤 Menghantar ke Discord...")
-        r = requests.post(WEBHOOK_URL, json=payload, impersonate="chrome")
-        
-        if r.status_code in [200, 204]:
-            print("✅ BERJAYA! Check Discord kau sekarang.")
-        else:
-            print(f"❌ Gagal hantar ke Discord. Status: {r.status_code}")
+        if not new_items:
+            print("😴 Tiada berita baru. Bot akan tidur.")
+            return
+
+        # 3. Kalau 'ingatan' kosong (First time run), jangan spam.
+        # Simpan je link terbaru dan keluar.
+        if last_sent_link == "":
+            with open(DB_FILE, "w") as f:
+                f.write(items[0].link.text.strip())
+            print("✅ Setup pertama kali selesai. 'Ingatan' sudah disimpan.")
+            return
+
+        print(f"🔥 Ada {len(new_items)} berita fresh!")
+
+        # 4. Hantar berita fresh ke Discord (Paling lama ke paling baru)
+        for item in reversed(new_items):
+            title = item.title.text
+            link = item.link.text
+            
+            payload = {
+                "content": f"🚀 **{title}**\n{link}"
+            }
+            requests.post(WEBHOOK_URL, json=payload, impersonate="chrome")
+            print(f"✅ Dihantar: {title}")
+
+        # 5. Kemaskini 'ingatan' dengan link paling baru
+        with open(DB_FILE, "w") as f:
+            f.write(items[0].link.text.strip())
 
     except Exception as e:
-        print(f"🔥 Error Besar: {e}")
+        print(f"🔥 Error: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
