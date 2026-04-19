@@ -9,65 +9,78 @@ DB_FILE = "last_link.txt"
 
 def main():
     if not WEBHOOK_URL:
-        print("❌ Webhook tak jumpa!")
+        print("❌ DISCORD_WEBHOOK tak dijumpai di GitHub Secret!")
         sys.exit(1)
 
-    # 1. Baca 'ingatan' bot (link terakhir yang dihantar)
-    last_sent_link = ""
+    # Baca last sent link
+    last_sent = ""
     if os.path.exists(DB_FILE):
         with open(DB_FILE, "r") as f:
-            last_sent_link = f.read().strip()
+            last_sent = f.read().strip()
 
     try:
-        print("🚀 Memeriksa berita baru...")
+        print("🚀 Memeriksa berita baru dari Amanz...")
         res = requests.get(RSS_URL, impersonate="chrome", timeout=30)
+
+        if res.status_code != 200:
+            print(f"❌ Gagal fetch RSS: {res.status_code}")
+            return
+
         soup = BeautifulSoup(res.content, 'xml')
         items = soup.find_all('item')
 
         if not items:
-            print("⚠️ RSS Kosong.")
+            print("⚠️ Tiada artikel dalam RSS.")
             return
 
-        # 2. Cari berita yang belum pernah dihantar
+        # Cari artikel baru (yang belum dihantar)
         new_items = []
         for item in items:
             link = item.link.text.strip()
-            if link == last_sent_link:
-                break # Berhenti bila jumpa berita lama
+            if link == last_sent:
+                break
             new_items.append(item)
 
         if not new_items:
-            print("😴 Tiada berita baru. Bot akan tidur.")
+            print("😴 Tiada berita baru.")
             return
 
-        # 3. Kalau 'ingatan' kosong (First time run), jangan spam.
-        # Simpan je link terbaru dan keluar.
-        if last_sent_link == "":
-            with open(DB_FILE, "w") as f:
-                f.write(items[0].link.text.strip())
-            print("✅ Setup pertama kali selesai. 'Ingatan' sudah disimpan.")
-            return
+        print(f"🔥 Jumpa {len(new_items)} berita baru!")
 
-        print(f"🔥 Ada {len(new_items)} berita fresh!")
-
-        # 4. Hantar berita fresh ke Discord (Paling lama ke paling baru)
+        # Hantar dari yang paling lama ke paling baru
         for item in reversed(new_items):
             title = item.title.text
             link = item.link.text
-            
-            payload = {
-                "content": f"🚀 **{title}**\n{link}"
+            pub_date = item.find("pubDate").text if item.find("pubDate") else ""
+
+            # Embed Cantik
+            embed = {
+                "title": title,
+                "url": link,
+                "description": "Berita terkini dari Amanz.my",
+                "color": 0xE74C3C,   # Warna merah Amanz
+                "footer": {
+                    "text": pub_date
+                }
             }
+
+            payload = {
+                "username": "Amanz Bot",
+                "avatar_url": "https://amanz.my/wp-content/uploads/2021/01/amanz-logo.png",
+                "embeds": [embed]
+            }
+
             requests.post(WEBHOOK_URL, json=payload, impersonate="chrome")
             print(f"✅ Dihantar: {title}")
 
-        # 5. Kemaskini 'ingatan' dengan link paling baru
+        # Update last_link.txt dengan artikel paling baru
         with open(DB_FILE, "w") as f:
             f.write(items[0].link.text.strip())
 
+        print("✅ Semua berita baru telah dihantar ke Discord.")
+
     except Exception as e:
         print(f"🔥 Error: {e}")
-        sys.exit(1)
 
 if __name__ == "__main__":
     main()
