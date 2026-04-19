@@ -1,4 +1,4 @@
-name: Amanz Bot
+name: Amanz & Phys.org Bot
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  run-amanz-bot:
+  run-multi-bot:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -25,20 +25,23 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run Amanz Bot
+      - name: Run Multi Bot
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: python bot.py
 
-      - name: Commit and Push
+      - name: Commit and Push Changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add last_link.txt
+          
+          # Kita guna *.txt supaya dia simpan semua file ingatan (Amanz + Phys)
+          git add *.txt
+          
           if git diff --staged --quiet; then
-            echo "✅ Tiada update."
+            echo "✅ Tiada berita baru untuk disimpan."
           else
-            git commit -m "chore: update last sent link [skip ci]"
+            git commit -m "chore: update last sent links [skip ci]"
             for i in {1..3}; do
               git pull --rebase origin main && git push && break
               sleep 5
