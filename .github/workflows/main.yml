@@ -41,7 +41,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "✅ Tiada perubahan pada last_link.txt"
           else
-            git pull --rebase origin main
+            git pull --rebase origin main   # ← Baris penting ni
             git commit -m "chore: update last sent Amanz link"
             git push
             echo "✅ last_link.txt telah diupdate"
