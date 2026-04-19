@@ -9,7 +9,6 @@ jobs:
   run-amanz-bot:
     runs-on: ubuntu-latest
     
-    # Tambah ni penting
     permissions:
       contents: write
 
@@ -42,6 +41,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "✅ Tiada perubahan pada last_link.txt"
           else
+            git pull --rebase origin main
             git commit -m "chore: update last sent Amanz link"
             git push
             echo "✅ last_link.txt telah diupdate"
