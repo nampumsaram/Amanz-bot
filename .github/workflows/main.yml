@@ -1,20 +1,37 @@
-name: AmanzBot
+name: Amanz-Bot-Smart
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 * * * *' # Setiap jam
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
+    # Wajib letak permission ni untuk bot 'menulis' ke repo
+    permissions:
+      contents: write
+      
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      - name: Install
+
+      - name: Install dependencies
         run: pip install -r requirements.txt
-      - name: Start
+
+      - name: Run Bot
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: python bot.py
+
+      # --- BAHAGIAN SIMPAN INGATAN ---
+      - name: Commit and Push if memory updated
+        run: |
+          git config --global user.name "Amanz-Bot-Automation"
+          git config --global user.email "bot@github.com"
+          git add last_link.txt
+          git commit -m "Update last_link memory" || exit 0
+          git push
