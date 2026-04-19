@@ -1,37 +1,44 @@
-name: Amanz-Bot-Smart
+name: Amanz Bot
+
 on:
-  workflow_dispatch:
   schedule:
-    - cron: '0 * * * *' # Setiap jam
+    - cron: "*/20 * * * *"    # Setiap 20 minit
+  workflow_dispatch:
 
 jobs:
-  run-bot:
+  run-amanz-bot:
     runs-on: ubuntu-latest
-    # Wajib letak permission ni untuk bot 'menulis' ke repo
-    permissions:
-      contents: write
-      
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.11"
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run Bot
+      - name: Run Amanz Bot
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: python bot.py
 
-      # --- BAHAGIAN SIMPAN INGATAN ---
-      - name: Commit and Push if memory updated
+      - name: Commit last_link.txt if updated
         run: |
-          git config --global user.name "Amanz-Bot-Automation"
-          git config --global user.email "bot@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
           git add last_link.txt
-          git commit -m "Update last_link memory" || exit 0
-          git push
+          
+          if git diff --staged --quiet; then
+            echo "✅ Tiada perubahan pada last_link.txt"
+          else
+            git commit -m "chore: update last sent Amanz link"
+            git push
+            echo "✅ last_link.txt telah diupdate"
+          fi
