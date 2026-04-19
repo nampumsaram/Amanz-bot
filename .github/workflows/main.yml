@@ -2,12 +2,16 @@ name: Amanz Bot
 
 on:
   schedule:
-    - cron: "*/20 * * * *"    # Setiap 20 minit
+    - cron: "*/20 * * * *"
   workflow_dispatch:
 
 jobs:
   run-amanz-bot:
     runs-on: ubuntu-latest
+    
+    # Tambah ni penting
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
