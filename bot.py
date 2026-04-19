@@ -1,43 +1,49 @@
-import requests
+from curl_cffi import requests
 from bs4 import BeautifulSoup
 import os
+import sys
 
-# Ambil URL dari GitHub Secret
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 RSS_URL = "https://amanz.my/feed/"
 
 def main():
     if not WEBHOOK_URL:
-        return print("Webhook tak ada!")
+        print("❌ Webhook tak jumpa!")
+        sys.exit(1)
 
     try:
-        # 1. Sedut berita paling baru
-        res = requests.get(RSS_URL, timeout=20)
+        print("🚀 Melancarkan 'Impersonate Chrome'...")
+        # Teknik impersonate="chrome" ni la yang akan buat Cloudflare keliru
+        res = requests.get(RSS_URL, impersonate="chrome", timeout=30)
+        
+        if res.status_code != 200:
+            print(f"❌ Masih kena block. Status: {res.status_code}")
+            return
+
         soup = BeautifulSoup(res.content, 'xml')
         item = soup.find('item')
         
+        if item is None:
+            print("⚠️ Data kosong. Amanz mungkin hantar page challenge.")
+            return
+
         title = item.title.text
         link = item.link.text
-        # Ambil gambar kalau ada (Amanz selalunya letak dlm content:encoded)
-        desc = "Berita terkini dari Amanz.my"
+        
+        print(f"✅ Berjaya sedut: {title}")
 
-        # 2. Hantar ke Discord
+        # Hantar ke Discord
         payload = {
-            "username": "Amanz News Bot",
-            "avatar_url": "https://amanz.my/favicon.ico",
-            "embeds": [{
-                "title": title,
-                "url": link,
-                "description": desc,
-                "color": 16733952
-            }]
+            "content": f"🔥 **Berita Terkini Amanz!**\n\n**{title}**\n{link}"
         }
         
-        requests.post(WEBHOOK_URL, json=payload)
-        print(f"Hantar: {title}")
+        # Untuk hantar ke Discord, requests biasa pun ok
+        requests.post(WEBHOOK_URL, json=payload, impersonate="chrome")
+        print("✅ Berjaya hantar ke Discord!")
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"🔥 Error: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
