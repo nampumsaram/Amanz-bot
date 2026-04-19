@@ -6,20 +6,20 @@ import re
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 
-# Konfigurasi Feed (Boleh tambah banyak lagi kat sini)
+# Konfigurasi Feed (Warna & Link sahaja)
 FEEDS = [
     {
-        "name": "Amanz.my",
+        "name": "Amanz News",
         "url": "https://amanz.my/feed/",
-        "color": 15158332, # Merah
+        "color": 15158332, 
         "icon": "https://amanz.my/wp-content/uploads/2021/01/amanz-logo.png",
         "file": "last_link_amanz.txt"
     },
     {
-        "name": "Phys.org",
+        "name": "Phys.org Science",
         "url": "https://phys.org/rss-feed/",
-        "color": 13107, # Biru
-        "icon": "https://phys.b-cdn.net/favicon.ico",
+        "color": 27558,
+        "icon": "https://i.imgur.com/8YvA5fG.png", 
         "file": "last_link_phys.txt"
     }
 ]
@@ -47,9 +47,7 @@ def process_feed(feed_config):
     try:
         print(f"🚀 Memeriksa {name}...")
         res = requests.get(rss_url, impersonate="chrome", timeout=30)
-        if res.status_code != 200:
-            print(f"❌ Gagal akses {name}")
-            return
+        if res.status_code != 200: return
 
         soup = BeautifulSoup(res.content, 'xml')
         items = soup.find_all('item')
@@ -61,9 +59,7 @@ def process_feed(feed_config):
             if link == last_sent: break
             new_items.append(item)
 
-        if not new_items:
-            print(f"😴 {name}: Tiada berita baru.")
-            return
+        if not new_items: return
 
         for item in reversed(new_items):
             title = item.title.text
@@ -71,11 +67,15 @@ def process_feed(feed_config):
             pub_date = item.find("pubDate").text if item.find("pubDate") else ""
             raw_desc = item.description.text if item.description else ""
             clean_text = BeautifulSoup(raw_desc, "html.parser").get_text()
-            short_desc = (clean_text[:200] + '...') if len(clean_text) > 200 else clean_text
+            short_desc = (clean_text[:180] + '...') if len(clean_text) > 180 else clean_text
             image_url = get_image(item)
 
             embed = {
-                "author": {"name": name, "url": rss_url, "icon_url": feed_config["icon"]},
+                "author": {
+                    "name": name, 
+                    "url": link, 
+                    "icon_url": feed_config["icon"]
+                },
                 "title": title,
                 "url": link,
                 "description": short_desc,
@@ -84,7 +84,8 @@ def process_feed(feed_config):
                 "footer": {"text": f"Diterbitkan: {pub_date}"}
             }
 
-            requests.post(WEBHOOK_URL, json={"username": name, "avatar_url": feed_config["icon"], "embeds": [embed]}, impersonate="chrome")
+            # Kod paling "Clean" supaya Discord guna Nama & Muka kau kat Webhook setting
+            requests.post(WEBHOOK_URL, json={"embeds": [embed]}, impersonate="chrome")
             print(f"✅ {name}: {title}")
 
         with open(db_file, "w") as f:
