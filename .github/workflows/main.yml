@@ -1,0 +1,17 @@
+name: Run Amanz Bot
+on:
+  schedule:
+    - cron: '0 * * * *' # Bot jalan automatik setiap jam
+  workflow_dispatch: # Supaya kita boleh tekan butang 'Play' manual
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - run: pip install -r requirements.txt
+      - env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: python bot.py
