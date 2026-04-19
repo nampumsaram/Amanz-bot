@@ -5,14 +5,27 @@ import sys
 import re
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
-RSS_URL = "https://amanz.my/feed/"
-DB_FILE = "last_link.txt"
 
-AMANZ_COLOR = 15158332 
-AMANZ_LOGO = "https://amanz.my/wp-content/uploads/2021/01/amanz-logo.png"
+# Konfigurasi Feed (Boleh tambah banyak lagi kat sini)
+FEEDS = [
+    {
+        "name": "Amanz.my",
+        "url": "https://amanz.my/feed/",
+        "color": 15158332, # Merah
+        "icon": "https://amanz.my/wp-content/uploads/2021/01/amanz-logo.png",
+        "file": "last_link_amanz.txt"
+    },
+    {
+        "name": "Phys.org",
+        "url": "https://phys.org/rss-feed/",
+        "color": 13107, # Biru
+        "icon": "https://phys.b-cdn.net/favicon.ico",
+        "file": "last_link_phys.txt"
+    }
+]
 
 def get_image(item):
-    media = item.find('media:content') or item.find('media:thumbnail')
+    media = item.find('media:content') or item.find('media:thumbnail') or item.find('enclosure')
     if media and media.get('url'):
         return media.get('url')
     desc = item.description.text if item.description else ""
@@ -21,38 +34,35 @@ def get_image(item):
         return img_match.group(1)
     return None
 
-def main():
-    if not WEBHOOK_URL:
-        print("❌ Webhook Secret tak dijumpai!")
-        sys.exit(1)
-
+def process_feed(feed_config):
+    name = feed_config["name"]
+    rss_url = feed_config["url"]
+    db_file = feed_config["file"]
+    
     last_sent = ""
-    if os.path.exists(DB_FILE):
-        with open(DB_FILE, "r") as f:
+    if os.path.exists(db_file):
+        with open(db_file, "r") as f:
             last_sent = f.read().strip()
 
     try:
-        print("🚀 Memeriksa berita terkini Amanz...")
-        res = requests.get(RSS_URL, impersonate="chrome", timeout=30)
+        print(f"🚀 Memeriksa {name}...")
+        res = requests.get(rss_url, impersonate="chrome", timeout=30)
         if res.status_code != 200:
-            print(f"❌ Gagal akses. Status: {res.status_code}")
+            print(f"❌ Gagal akses {name}")
             return
 
         soup = BeautifulSoup(res.content, 'xml')
         items = soup.find_all('item')
-        if not items:
-            print("⚠️ RSS kosong.")
-            return
+        if not items: return
 
         new_items = []
         for item in items:
             link = item.link.text.strip()
-            if link == last_sent:
-                break
+            if link == last_sent: break
             new_items.append(item)
 
         if not new_items:
-            print("😴 Tiada berita baru.")
+            print(f"😴 {name}: Tiada berita baru.")
             return
 
         for item in reversed(new_items):
@@ -65,24 +75,29 @@ def main():
             image_url = get_image(item)
 
             embed = {
-                "author": {"name": "Amanz.my", "url": "https://amanz.my", "icon_url": AMANZ_LOGO},
+                "author": {"name": name, "url": rss_url, "icon_url": feed_config["icon"]},
                 "title": title,
                 "url": link,
                 "description": short_desc,
-                "color": AMANZ_COLOR,
+                "color": feed_config["color"],
                 "image": {"url": image_url} if image_url else {},
                 "footer": {"text": f"Diterbitkan: {pub_date}"}
             }
 
-            payload = {"username": "Amanz News", "avatar_url": AMANZ_LOGO, "embeds": [embed]}
-            requests.post(WEBHOOK_URL, json=payload, impersonate="chrome")
-            print(f"✅ Berjaya: {title}")
+            requests.post(WEBHOOK_URL, json={"username": name, "avatar_url": feed_config["icon"], "embeds": [embed]}, impersonate="chrome")
+            print(f"✅ {name}: {title}")
 
-        with open(DB_FILE, "w") as f:
+        with open(db_file, "w") as f:
             f.write(items[0].link.text.strip())
 
     except Exception as e:
-        print(f"🔥 Error: {e}")
+        print(f"🔥 Error {name}: {e}")
+
+def main():
+    if not WEBHOOK_URL:
+        sys.exit(1)
+    for feed in FEEDS:
+        process_feed(feed)
 
 if __name__ == "__main__":
     main()
