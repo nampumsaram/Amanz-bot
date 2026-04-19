@@ -8,7 +8,6 @@ on:
 jobs:
   run-amanz-bot:
     runs-on: ubuntu-latest
-
     permissions:
       contents: write
 
@@ -16,7 +15,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Ambil semua history supaya rebase senang
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -31,38 +30,17 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: python bot.py
 
-      - name: Commit last_link.txt if updated
+      - name: Commit and Push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # 1. Simpan perubahan bot ke dalam staging
           git add last_link.txt
-          
-          # 2. Check kalau ada perubahan
           if git diff --staged --quiet; then
-            echo "✅ Tiada perubahan pada last_link.txt"
+            echo "✅ Tiada update."
           else
-            # 3. Commit dulu lokal
-            git commit -m "chore: update last sent Amanz link"
-            
-            # 4. Loop untuk tarik data terbaru dan push (Retry 5 kali)
-            for i in {1..5}; do
-              echo "Percubaan push ke-$i..."
-              
-              # Tarik data terbaru dari GitHub Web (phone kau tadi)
-              git pull --rebase origin main
-              
-              # Cuba hantar (push)
-              if git push origin main; then
-                echo "✅ BERJAYA PUSH!"
-                exit 0
-              fi
-              
-              echo "❌ Gagal push, tunggu 5 saat sebelum cuba lagi..."
+            git commit -m "chore: update last sent link [skip ci]"
+            for i in {1..3}; do
+              git pull --rebase origin main && git push && break
               sleep 5
             done
-            
-            echo "❌ Masih gagal selepas 5 kali cubaan."
-            exit 1
           fi
