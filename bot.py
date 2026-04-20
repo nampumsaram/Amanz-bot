@@ -7,7 +7,7 @@ import re
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK")
 
 # Konfigurasi Feed (Warna & Link sahaja)
-FEEDS = [
+FEEDS =[
     {
         "name": "Amanz News",
         "url": "https://amanz.my/feed/",
@@ -50,12 +50,16 @@ def process_feed(feed_config):
         if res.status_code != 200: return
 
         soup = BeautifulSoup(res.content, 'xml')
-        items = soup.find_all('item')
+        
+        # 👇 PERUBAHAN DI SINI: Limitkan kepada 7 item sahaja ([0 hingga 6])
+        items = soup.find_all('item')[:7]
+        
         if not items: return
 
-        new_items = []
+        new_items =[]
         for item in items:
             link = item.link.text.strip()
+            # Kalau jumpa link yang sama dalam senarai 7 berita ni, dia berhenti
             if link == last_sent: break
             new_items.append(item)
 
@@ -84,7 +88,6 @@ def process_feed(feed_config):
                 "footer": {"text": f"Diterbitkan: {pub_date}"}
             }
 
-            # Kod paling "Clean" supaya Discord guna Nama & Muka kau kat Webhook setting
             requests.post(WEBHOOK_URL, json={"embeds": [embed]}, impersonate="chrome")
             print(f"✅ {name}: {title}")
 
@@ -96,6 +99,7 @@ def process_feed(feed_config):
 
 def main():
     if not WEBHOOK_URL:
+        print("⚠️ DISCORD_WEBHOOK tidak dijumpai! Sila set environment variable.")
         sys.exit(1)
     for feed in FEEDS:
         process_feed(feed)
